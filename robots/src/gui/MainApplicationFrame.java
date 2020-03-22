@@ -1,17 +1,13 @@
 package gui;
 
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
+import log.Logger;
 
 import javax.swing.*;
-
-import log.Logger;
+import java.awt.*;
+import java.awt.event.*;
+import java.beans.PropertyVetoException;
+import java.io.*;
+import java.util.HashMap;
 
 /**
  * Что требуется сделать:
@@ -20,6 +16,8 @@ import log.Logger;
  */
 public class MainApplicationFrame extends JFrame {
     private final JDesktopPane desktopPane = new JDesktopPane();
+    private File file = new File(System.getProperty("user.home") + "/windows.txt");
+    private WindowSettings mainWs = new WindowSettings("Main");
 
     public MainApplicationFrame() {
         //Make the big window be indented 50 pixels from each edge
@@ -31,31 +29,124 @@ public class MainApplicationFrame extends JFrame {
                 screenSize.height - inset * 2);
 
         setContentPane(desktopPane);
+        setVisible(true);
 
+        HashMap<String, Boolean> openInternalFrames = new HashMap<>();
 
         LogWindow logWindow = createLogWindow();
         addWindow(logWindow);
-
         GameWindow gameWindow = new GameWindow();
-        gameWindow.setSize(400, 400);
         addWindow(gameWindow);
+
+
+        JInternalFrame[] internalFrames = desktopPane.getAllFrames();
+        for (JInternalFrame internalFrame : internalFrames)
+            openInternalFrames.put(internalFrame.getTitle(), false);
+
+        if (file.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+                while (true) {
+                    try {
+                        WindowSettings ws = (WindowSettings) ois.readObject();
+                        if (ws.getTitle().equals("Main")) loadMainFrameState(ws);
+                        for (JInternalFrame internalFrame : internalFrames) {
+                            if (internalFrame.getTitle().equals(ws.getTitle())) {
+                                openInternalFrames.put(internalFrame.getTitle(), true);
+                                loadInternalFrameState(internalFrame, ws);
+                            }
+                        }
+                    } catch (EOFException e) {
+                        break;
+                    } catch (PropertyVetoException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        } else {
+            // выставляю настройки, которые были при изначальном запуске приложения
+            pack();
+            setExtendedState(MAXIMIZED_BOTH);
+            for (JInternalFrame internalFrame : internalFrames) {
+                openInternalFrames.put(internalFrame.getTitle(), true);
+            }
+            gameWindow.setSize(400, 400);
+            logWindow.setLocation(10, 10);
+            logWindow.setSize(300, 800);
+        }
+
+        try {
+            for (JInternalFrame internalFrame : internalFrames) {
+                if (!openInternalFrames.get(internalFrame.getTitle())) internalFrame.setClosed(true);
+            }
+        } catch (PropertyVetoException e) {
+            e.printStackTrace();
+        }
 
         setJMenuBar(generateMenuBar());
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
         addWindowListener(new WindowAdapter() {
             @Override
+            public void windowIconified(WindowEvent e) {
+                mainWs.setIcon(true);
+            }
+
+            @Override
+            public void windowDeiconified(WindowEvent e) {
+                mainWs.setIcon(false);
+                if (mainWs.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
+            }
+
+            @Override
             public void windowClosing(WindowEvent e) {
                 closeMainWindow();
             }
         });
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                mainWs.setSize(e.getComponent().getSize());
+                if (getExtendedState() == JFrame.MAXIMIZED_BOTH) {
+                    mainWs.setMaximum(true);
+                }
+                if (getExtendedState() == JFrame.NORMAL) {
+                    mainWs.setMaximum(false);
+                }
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                mainWs.setLocation(e.getComponent().getLocation());
+            }
+        });
+    }
+
+    private void loadMainFrameState(WindowSettings ws) {
+        if (ws.isIcon()) {
+            if (ws.isMaximum()) mainWs.setMaximum(true);
+            setExtendedState(ICONIFIED);
+        } else {
+            if (ws.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
+            else setExtendedState(NORMAL);
+        }
+        setLocation(ws.getLocation());
+        setSize(ws.getSize());
+    }
+
+    private void loadInternalFrameState(JInternalFrame internalFrame, WindowSettings ws) throws PropertyVetoException {
+        if(!ws.isIcon())
+            desktopPane.setComponentZOrder(internalFrame,ws.getzOrder());
+        internalFrame.setLocation(ws.getLocation());
+        internalFrame.setSize(ws.getSize());
+        if (ws.isMaximum()) internalFrame.setMaximum(true);
+        if (ws.isIcon()) internalFrame.setIcon(true);
     }
 
     protected LogWindow createLogWindow() {
         LogWindow logWindow = new LogWindow(Logger.getDefaultLogSource());
-        logWindow.setLocation(10, 10);
-        logWindow.setSize(300, 800);
-        setMinimumSize(logWindow.getSize());
         logWindow.pack();
         Logger.debug("Протокол работает");
         return logWindow;
@@ -67,18 +158,34 @@ public class MainApplicationFrame extends JFrame {
     }
 
     private void closeMainWindow() {
-        try {
-            Object[] options = {"Да", "Нет"};
-            int reply = JOptionPane
-                    .showOptionDialog(null, "Вы уверены что хотите выйти?",
-                            "Выход", JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE, null, options,
-                            options[0]);
-            if (reply == JOptionPane.YES_OPTION) {
-                System.exit(0);
+        Object[] options = {"Да", "Нет"};
+        int reply = JOptionPane
+                .showOptionDialog(null, "Вы уверены что хотите выйти?",
+                        "Выход", JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE, null, options,
+                        options[0]);
+        if (reply == JOptionPane.YES_OPTION) {
+            try (
+                    ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+            ) {
+                oos.writeObject(mainWs);
+                JInternalFrame[] frames = desktopPane.getAllFrames();
+                for (JInternalFrame internalFrame :
+                        frames) {
+                    WindowSettings ws = new WindowSettings(internalFrame.getTitle());
+                    ws.setMaximum(internalFrame.isMaximum());
+                    ws.setIcon(internalFrame.isIcon());
+                    ws.setzOrder(desktopPane.getComponentZOrder(internalFrame));
+                    internalFrame.setIcon(false);
+                    internalFrame.setMaximum(false);
+                    ws.setSize(internalFrame.getSize());
+                    ws.setLocation(internalFrame.getLocation());
+                    oos.writeObject(ws);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            System.exit(0);
         }
     }
 

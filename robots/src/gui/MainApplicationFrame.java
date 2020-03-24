@@ -5,19 +5,17 @@ import log.Logger;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.beans.PropertyVetoException;
 import java.io.*;
-import java.util.HashMap;
 
 /**
  * Что требуется сделать:
  * 1. Метод создания меню перегружен функционалом и трудно читается.
  * Следует разделить его на серию более простых методов (или вообще выделить отдельный класс).
  */
-public class MainApplicationFrame extends JFrame {
+public class MainApplicationFrame extends JFrame implements Savable {
+    private static File windowsSettingsFile = new File(System.getProperty("user.home") + File.separator + "windows.txt");
     private final JDesktopPane desktopPane = new JDesktopPane();
-    private File file = new File(System.getProperty("user.home") + File.separator + "windows.txt");
-    private WindowSettings mainWs = new WindowSettings("Main");
+    private SavableWindowSettings mainWs = new SavableWindowSettings("Main");
 
     public MainApplicationFrame() {
         //Make the big window be indented 50 pixels from each edge
@@ -32,54 +30,13 @@ public class MainApplicationFrame extends JFrame {
         pack();
         setVisible(true);
 
-        HashMap<String, Boolean> openInternalFrames = new HashMap<>();
-
         LogWindow logWindow = createLogWindow();
         addWindow(logWindow);
         GameWindow gameWindow = new GameWindow();
         addWindow(gameWindow);
 
-
-        JInternalFrame[] internalFrames = desktopPane.getAllFrames();
-        for (JInternalFrame internalFrame : internalFrames)
-            openInternalFrames.put(internalFrame.getTitle(), false);
-
-        if (file.exists() && file.length() != 0) {
-            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-                while (true) {
-                    try {
-                        WindowSettings ws = (WindowSettings) ois.readObject();
-                        if (ws.getTitle().equals("Main")) loadMainFrameState(ws);
-                        for (JInternalFrame internalFrame : internalFrames) {
-                            if (internalFrame.getTitle().equals(ws.getTitle())) {
-                                openInternalFrames.put(internalFrame.getTitle(), true);
-                                loadInternalFrameState(internalFrame, ws);
-                            }
-                        }
-                    } catch (EOFException e) {
-                        break;
-                    } catch (PropertyVetoException e) {
-                        e.printStackTrace();
-                    }
-                }
-            } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        } else {
-            setExtendedState(MAXIMIZED_BOTH);
-            gameWindow.setSize(400, 400);
-            for (JInternalFrame internalFrame : internalFrames) {
-                openInternalFrames.put(internalFrame.getTitle(), true);
-            }
-        }
-
-        try {
-            for (JInternalFrame internalFrame : internalFrames) {
-                if (!openInternalFrames.get(internalFrame.getTitle())) internalFrame.setClosed(true);
-            }
-        } catch (PropertyVetoException e) {
-            e.printStackTrace();
-        }
+        SavableWindowsStorage.add(this);
+        SavableWindowsStorage.loadWindows(windowsSettingsFile);
 
         setJMenuBar(generateMenuBar());
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -98,7 +55,7 @@ public class MainApplicationFrame extends JFrame {
 
             @Override
             public void windowClosing(WindowEvent e) {
-                closeMainWindow();
+                showExitDialog();
             }
         });
 
@@ -121,27 +78,6 @@ public class MainApplicationFrame extends JFrame {
         });
     }
 
-    private void loadMainFrameState(WindowSettings ws) {
-        if (ws.isIcon()) {
-            if (ws.isMaximum()) mainWs.setMaximum(true);
-            setExtendedState(ICONIFIED);
-        } else {
-            if (ws.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
-            else setExtendedState(NORMAL);
-        }
-        setLocation(ws.getLocation());
-        setSize(ws.getSize());
-    }
-
-    private void loadInternalFrameState(JInternalFrame internalFrame, WindowSettings ws) throws PropertyVetoException {
-        if(!ws.isIcon())
-            desktopPane.setComponentZOrder(internalFrame,ws.getzOrder());
-        internalFrame.setLocation(ws.getLocation());
-        internalFrame.setSize(ws.getSize());
-        if (ws.isMaximum()) internalFrame.setMaximum(true);
-        if (ws.isIcon()) internalFrame.setIcon(true);
-    }
-
     protected LogWindow createLogWindow() {
         LogWindow logWindow = new LogWindow(Logger.getDefaultLogSource());
         logWindow.setLocation(10, 10);
@@ -157,7 +93,7 @@ public class MainApplicationFrame extends JFrame {
         frame.setVisible(true);
     }
 
-    private void closeMainWindow() {
+    private void showExitDialog() {
         Object[] options = {"Да", "Нет"};
         int reply = JOptionPane
                 .showOptionDialog(null, "Вы уверены что хотите выйти?",
@@ -165,28 +101,13 @@ public class MainApplicationFrame extends JFrame {
                         JOptionPane.QUESTION_MESSAGE, null, options,
                         options[0]);
         if (reply == JOptionPane.YES_OPTION) {
-            try (
-                    ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
-            ) {
-                oos.writeObject(mainWs);
-                JInternalFrame[] frames = desktopPane.getAllFrames();
-                for (JInternalFrame internalFrame :
-                        frames) {
-                    WindowSettings ws = new WindowSettings(internalFrame.getTitle());
-                    ws.setMaximum(internalFrame.isMaximum());
-                    ws.setIcon(internalFrame.isIcon());
-                    ws.setzOrder(desktopPane.getComponentZOrder(internalFrame));
-                    internalFrame.setIcon(false);
-                    internalFrame.setMaximum(false);
-                    ws.setSize(internalFrame.getSize());
-                    ws.setLocation(internalFrame.getLocation());
-                    oos.writeObject(ws);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            System.exit(0);
+            closeMainWindow();
         }
+    }
+
+    private void closeMainWindow() {
+        SavableWindowsStorage.saveWindows(windowsSettingsFile);
+        System.exit(0);
     }
 
 //    protected JMenuBar createMenuBar() {
@@ -225,7 +146,7 @@ public class MainApplicationFrame extends JFrame {
 
         {
             JMenuItem exitButton = new JMenuItem("Закрыть приложение");
-            exitButton.addActionListener((event) -> closeMainWindow());
+            exitButton.addActionListener((event) -> showExitDialog());
             exitMenu.add(exitButton);
         }
 
@@ -280,4 +201,32 @@ public class MainApplicationFrame extends JFrame {
             // just ignore
         }
     }
+
+    @Override
+    public void saveWindowSettings(File file) {
+        SavableWindowSettings.writeWindowSettingsInFile(file, mainWs);
+    }
+
+    @Override
+    public void loadWindowSettings(File file) {
+        SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, mainWs.getTitle());
+        if (ws == null) setDefaultSettings();
+        else {
+            if (ws.isIcon()) {
+                if (ws.isMaximum()) mainWs.setMaximum(true);
+                setExtendedState(ICONIFIED);
+            } else {
+                if (ws.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
+                else setExtendedState(NORMAL);
+            }
+            setLocation(ws.getLocation());
+            setSize(ws.getSize());
+        }
+    }
+
+    @Override
+    public void setDefaultSettings() {
+        setExtendedState(MAXIMIZED_BOTH);
+    }
+
 }

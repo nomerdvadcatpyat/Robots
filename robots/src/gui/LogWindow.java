@@ -7,11 +7,14 @@ import java.awt.TextArea;
 import javax.swing.JInternalFrame;
 import javax.swing.JPanel;
 
+import gui.saveWindows.JInternalFrameLoader;
+import gui.saveWindows.Savable;
+import gui.saveWindows.SavableWindowSettings;
+import gui.saveWindows.SavableWindowsStorage;
 import log.LogChangeListener;
 import log.LogEntry;
 import log.LogWindowSource;
 
-import java.beans.PropertyVetoException;
 import java.io.File;
 
 public class LogWindow extends JInternalFrame implements LogChangeListener, Savable {
@@ -55,16 +58,7 @@ public class LogWindow extends JInternalFrame implements LogChangeListener, Sava
     public void loadWindowSettings(File file) {
         SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
         if (ws == null) setDefaultSettings();
-        else {
-            setLocation(ws.getLocation());
-            setSize(ws.getSize());
-            try {
-                if (ws.isMaximum()) setMaximum(true);
-                if (ws.isIcon()) setIcon(true);
-            } catch (PropertyVetoException e) {
-                e.printStackTrace();
-            }
-        }
+        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override

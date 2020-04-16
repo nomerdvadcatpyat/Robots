@@ -1,9 +1,8 @@
-package gui;
-
-import gui.streams.ObjectStreamCreator;
+package gui.saveWindows;
 
 import java.awt.*;
 import java.io.*;
+import java.util.HashSet;
 
 public class SavableWindowSettings implements Serializable {
 
@@ -12,6 +11,8 @@ public class SavableWindowSettings implements Serializable {
     private Dimension size;
     private boolean isIcon;
     private boolean isMaximum;
+
+    static HashSet<SavableWindowSettings> savedWindowsSettings = new HashSet<>();
 
     public SavableWindowSettings(String title) {
         this.title = title;
@@ -24,19 +25,16 @@ public class SavableWindowSettings implements Serializable {
         this.isIcon = isIcon;
         this.isMaximum = isMaximum;
     }
-
+    
     public static SavableWindowSettings readWindowSettingsFromFile(File file, String windowTitle) {
         SavableWindowSettings res = null;
         if (file.exists() && file.length() != 0) {
             try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-                while (true) {
-                    try {
-                        SavableWindowSettings ws = (SavableWindowSettings) ois.readObject();
-                        if (windowTitle.equals(ws.getTitle())) {
-                            res = ws;
-                            break;
-                        }
-                    } catch (EOFException e) {
+                if(savedWindowsSettings.size() == 0) savedWindowsSettings = (HashSet<SavableWindowSettings>) ois.readObject();
+                for (SavableWindowSettings ws: savedWindowsSettings) {
+                    if (windowTitle.equals(ws.getTitle())) {
+                        res = ws;
+                        savedWindowsSettings.remove(ws);
                         break;
                     }
                 }
@@ -49,9 +47,10 @@ public class SavableWindowSettings implements Serializable {
 
     public static void writeWindowSettingsInFile(File file, SavableWindowSettings ws) {
         try (
-                ObjectOutputStream oos = ObjectStreamCreator.createStream(file);
+                ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
         ) {
-            oos.writeObject(ws);
+            savedWindowsSettings.add(ws);
+            oos.writeObject(savedWindowsSettings);
         } catch (IOException e) {
             e.printStackTrace();
         }

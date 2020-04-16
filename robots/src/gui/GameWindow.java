@@ -1,8 +1,12 @@
 package gui;
 
+import gui.saveWindows.JInternalFrameLoader;
+import gui.saveWindows.Savable;
+import gui.saveWindows.SavableWindowSettings;
+import gui.saveWindows.SavableWindowsStorage;
+
 import javax.swing.*;
 import java.awt.*;
-import java.beans.PropertyVetoException;
 import java.io.File;
 
 public class GameWindow extends JInternalFrame implements Savable {
@@ -27,16 +31,7 @@ public class GameWindow extends JInternalFrame implements Savable {
     public void loadWindowSettings(File file) {
         SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
         if (ws == null) setDefaultSettings();
-        else {
-            setLocation(ws.getLocation());
-            setSize(ws.getSize());
-            try {
-                if (ws.isMaximum()) setMaximum(true);
-                if (ws.isIcon()) setIcon(true);
-            } catch (PropertyVetoException e) {
-                e.printStackTrace();
-            }
-        }
+        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override

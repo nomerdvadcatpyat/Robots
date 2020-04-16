@@ -55,16 +55,7 @@ public class LogWindow extends JInternalFrame implements LogChangeListener, Sava
     public void loadWindowSettings(File file) {
         SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
         if (ws == null) setDefaultSettings();
-        else {
-            setLocation(ws.getLocation());
-            setSize(ws.getSize());
-            try {
-                if (ws.isMaximum()) setMaximum(true);
-                if (ws.isIcon()) setIcon(true);
-            } catch (PropertyVetoException e) {
-                e.printStackTrace();
-            }
-        }
+        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override

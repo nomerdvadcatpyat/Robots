@@ -12,17 +12,13 @@ public class SavableWindowsStorage {
     }
 
     public static void loadWindows(File file) {
-        for (Savable window :
-                savableWindows) {
+        for (Savable window : savableWindows)
             window.loadWindowSettings(file);
-        }
         file.delete();
     }
 
     public static void saveWindows(File file) {
-        for (Savable window :
-                savableWindows) {
+        for (Savable window : savableWindows)
             window.saveWindowSettings(file);
-        }
     }
 }

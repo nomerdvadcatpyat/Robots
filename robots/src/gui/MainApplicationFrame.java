@@ -30,12 +30,12 @@ public class MainApplicationFrame extends JFrame implements Savable {
         pack();
         setVisible(true);
 
+        SavableWindowsStorage.add(this);
         LogWindow logWindow = createLogWindow();
         addWindow(logWindow);
         GameWindow gameWindow = new GameWindow();
         addWindow(gameWindow);
 
-        SavableWindowsStorage.add(this);
         SavableWindowsStorage.loadWindows(windowsSettingsFile);
 
         setJMenuBar(generateMenuBar());

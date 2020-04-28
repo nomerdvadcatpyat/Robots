@@ -1,25 +1,24 @@
 package gui;
 
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
+import gui.saveWindows.Savable;
+import gui.saveWindows.SavableWindowSettings;
+import gui.saveWindows.SavableWindowsStorage;
+import log.Logger;
 
 import javax.swing.*;
-
-import log.Logger;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
 
 /**
  * Что требуется сделать:
  * 1. Метод создания меню перегружен функционалом и трудно читается.
  * Следует разделить его на серию более простых методов (или вообще выделить отдельный класс).
  */
-public class MainApplicationFrame extends JFrame {
+public class MainApplicationFrame extends JFrame implements Savable {
+    private static File windowsSettingsFile = new File(System.getProperty("user.home") + File.separator + "windows.txt");
     private final JDesktopPane desktopPane = new JDesktopPane();
+    private SavableWindowSettings mainWs = new SavableWindowSettings("Main");
 
     public MainApplicationFrame() {
         //Make the big window be indented 50 pixels from each edge
@@ -31,22 +30,53 @@ public class MainApplicationFrame extends JFrame {
                 screenSize.height - inset * 2);
 
         setContentPane(desktopPane);
+        pack();
+        setVisible(true);
 
-
+        SavableWindowsStorage.add(this);
         LogWindow logWindow = createLogWindow();
         addWindow(logWindow);
-
         GameWindow gameWindow = new GameWindow();
-        gameWindow.setSize(400, 400);
         addWindow(gameWindow);
+
+        SavableWindowsStorage.loadWindows(windowsSettingsFile);
 
         setJMenuBar(generateMenuBar());
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
         addWindowListener(new WindowAdapter() {
             @Override
+            public void windowIconified(WindowEvent e) {
+                mainWs.setIcon(true);
+            }
+
+            @Override
+            public void windowDeiconified(WindowEvent e) {
+                mainWs.setIcon(false);
+                if (mainWs.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
+            }
+
+            @Override
             public void windowClosing(WindowEvent e) {
-                closeMainWindow();
+                showExitDialog();
+            }
+        });
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                mainWs.setSize(e.getComponent().getSize());
+                if (getExtendedState() == JFrame.MAXIMIZED_BOTH) {
+                    mainWs.setMaximum(true);
+                }
+                if (getExtendedState() == JFrame.NORMAL) {
+                    mainWs.setMaximum(false);
+                }
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                mainWs.setLocation(e.getComponent().getLocation());
             }
         });
     }
@@ -66,20 +96,21 @@ public class MainApplicationFrame extends JFrame {
         frame.setVisible(true);
     }
 
-    private void closeMainWindow() {
-        try {
-            Object[] options = {"Да", "Нет"};
-            int reply = JOptionPane
-                    .showOptionDialog(null, "Вы уверены что хотите выйти?",
-                            "Выход", JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE, null, options,
-                            options[0]);
-            if (reply == JOptionPane.YES_OPTION) {
-                System.exit(0);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    private void showExitDialog() {
+        Object[] options = {"Да", "Нет"};
+        int reply = JOptionPane
+                .showOptionDialog(null, "Вы уверены что хотите выйти?",
+                        "Выход", JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE, null, options,
+                        options[0]);
+        if (reply == JOptionPane.YES_OPTION) {
+            closeMainWindow();
         }
+    }
+
+    private void closeMainWindow() {
+        SavableWindowsStorage.saveWindows(windowsSettingsFile);
+        System.exit(0);
     }
 
 //    protected JMenuBar createMenuBar() {
@@ -118,7 +149,7 @@ public class MainApplicationFrame extends JFrame {
 
         {
             JMenuItem exitButton = new JMenuItem("Закрыть приложение");
-            exitButton.addActionListener((event) -> closeMainWindow());
+            exitButton.addActionListener((event) -> showExitDialog());
             exitMenu.add(exitButton);
         }
 
@@ -173,4 +204,32 @@ public class MainApplicationFrame extends JFrame {
             // just ignore
         }
     }
+
+    @Override
+    public void saveWindowSettings(File file) {
+        SavableWindowSettings.writeWindowSettingsInFile(file, mainWs);
+    }
+
+    @Override
+    public void loadWindowSettings(File file) {
+        SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, mainWs.getTitle());
+        if (ws == null) setDefaultSettings();
+        else {
+            if (ws.isIcon()) {
+                if (ws.isMaximum()) mainWs.setMaximum(true);
+                setExtendedState(ICONIFIED);
+            } else {
+                if (ws.isMaximum()) setExtendedState(MAXIMIZED_BOTH);
+                else setExtendedState(NORMAL);
+            }
+            setLocation(ws.getLocation());
+            setSize(ws.getSize());
+        }
+    }
+
+    @Override
+    public void setDefaultSettings() {
+        setExtendedState(MAXIMIZED_BOTH);
+    }
+
 }

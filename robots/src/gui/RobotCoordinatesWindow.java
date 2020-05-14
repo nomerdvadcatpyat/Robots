@@ -5,27 +5,37 @@ import gui.saveWindows.Savable;
 import gui.saveWindows.SavableWindowSettings;
 import gui.saveWindows.SavableWindowsStorage;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JInternalFrame;
+import javax.swing.JPanel;
+import java.awt.TextArea;
+import java.awt.BorderLayout;
 import java.io.File;
+import java.util.Observer;
+import java.util.Observable;
 
-public class GameWindow extends JInternalFrame implements Savable {
-    private final GameVisualizer m_visualizer;
-    private Robot robot;
+public class RobotCoordinatesWindow extends JInternalFrame implements Savable, Observer {
 
-    public GameWindow() {
-        super("Игровое поле", true, true, true, true);
+    private TextArea m_content;
+    private Robot m_robot;
+
+    public RobotCoordinatesWindow(Robot robot) {
+        super("Координаты робота", true, true, true, true);
+        m_robot = robot;
         SavableWindowsStorage.add(this);
-        robot = new Robot();
-        m_visualizer = new GameVisualizer(robot);
+        robot.addObserver(this);
+
+        m_content = new TextArea("");
+        m_content.setSize(400, 300);
+
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(m_visualizer, BorderLayout.CENTER);
+        panel.add(m_content, BorderLayout.CENTER);
         getContentPane().add(panel);
-        pack();
     }
 
-    public Robot getRobot() {
-        return robot;
+    @Override
+    public void update(Observable o, Object key)
+    {
+        m_content.setText(m_robot.getX() + " " + m_robot.getY());
     }
 
     @Override
@@ -42,7 +52,6 @@ public class GameWindow extends JInternalFrame implements Savable {
 
     @Override
     public void setDefaultSettings() {
-        setSize(400, 400);
+        setSize(120, 70);
     }
 }
-

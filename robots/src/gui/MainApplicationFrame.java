@@ -38,6 +38,8 @@ public class MainApplicationFrame extends JFrame implements Savable {
         addWindow(logWindow);
         GameWindow gameWindow = new GameWindow();
         addWindow(gameWindow);
+        RobotCoordinatesWindow coordinatesWindow = new RobotCoordinatesWindow(gameWindow.getRobot());
+        addWindow(coordinatesWindow);
 
         SavableWindowsStorage.loadWindows(windowsSettingsFile);
 

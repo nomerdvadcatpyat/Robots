@@ -60,12 +60,11 @@ public class Robot extends Observable {
         double velocity = maxVelocity;
         double angleToTarget = angleTo(m_robotPositionX, m_robotPositionY, m_targetPositionX, m_targetPositionY);
         double angularVelocity = 0;
-
-        double diffAngle = asNormalizedRadians(angleToTarget - m_robotDirection);
-        if (diffAngle < Math.PI) {
+        
+        if (asNormalizedRadians(angleToTarget - m_robotDirection) < Math.PI) {
             angularVelocity = maxAngularVelocity;
         }
-        if (diffAngle > Math.PI) {
+        if (asNormalizedRadians(angleToTarget - m_robotDirection) > Math.PI) {
             angularVelocity = -maxAngularVelocity;
         }
 

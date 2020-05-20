@@ -1,15 +1,12 @@
 package gui;
 
-import gui.saveWindows.JInternalFrameLoader;
-import gui.saveWindows.Savable;
-import gui.saveWindows.SavableWindowSettings;
-import gui.saveWindows.SavableWindowsStorage;
+import gui.saveWindows.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 
-public class GameWindow extends JInternalFrame implements Savable {
+public class GameWindow extends SavableJInternalFrame {
     private final GameVisualizer m_visualizer;
     private Robot robot;
 
@@ -26,18 +23,6 @@ public class GameWindow extends JInternalFrame implements Savable {
 
     public Robot getRobot() {
         return robot;
-    }
-
-    @Override
-    public void saveWindowSettings(File file) {
-        SavableWindowSettings.writeWindowSettingsInFile(file, new SavableWindowSettings(getTitle(), getLocation(), getSize(), isIcon(), isMaximum()));
-    }
-
-    @Override
-    public void loadWindowSettings(File file) {
-        SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
-        if (ws == null) setDefaultSettings();
-        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override

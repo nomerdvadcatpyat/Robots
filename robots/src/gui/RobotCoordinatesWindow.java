@@ -1,9 +1,6 @@
 package gui;
 
-import gui.saveWindows.JInternalFrameLoader;
-import gui.saveWindows.Savable;
-import gui.saveWindows.SavableWindowSettings;
-import gui.saveWindows.SavableWindowsStorage;
+import gui.saveWindows.*;
 
 import javax.swing.JInternalFrame;
 import javax.swing.JPanel;
@@ -13,7 +10,7 @@ import java.io.File;
 import java.util.Observer;
 import java.util.Observable;
 
-public class RobotCoordinatesWindow extends JInternalFrame implements Savable, Observer {
+public class RobotCoordinatesWindow extends SavableJInternalFrame implements Observer {
 
     private TextArea m_content;
     private Robot m_robot;
@@ -36,18 +33,6 @@ public class RobotCoordinatesWindow extends JInternalFrame implements Savable, O
     public void update(Observable o, Object key)
     {
         m_content.setText(m_robot.getX() + " " + m_robot.getY());
-    }
-
-    @Override
-    public void saveWindowSettings(File file) {
-        SavableWindowSettings.writeWindowSettingsInFile(file, new SavableWindowSettings(getTitle(), getLocation(), getSize(), isIcon(), isMaximum()));
-    }
-
-    @Override
-    public void loadWindowSettings(File file) {
-        SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
-        if (ws == null) setDefaultSettings();
-        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override

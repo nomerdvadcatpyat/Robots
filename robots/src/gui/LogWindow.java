@@ -4,20 +4,15 @@ import java.awt.BorderLayout;
 import java.awt.EventQueue;
 import java.awt.TextArea;
 
-import javax.swing.JInternalFrame;
-import javax.swing.JPanel;
+import javax.swing.*;
 
-import gui.saveWindows.JInternalFrameLoader;
-import gui.saveWindows.Savable;
-import gui.saveWindows.SavableWindowSettings;
-import gui.saveWindows.SavableWindowsStorage;
+import gui.saveWindows.*;
 import log.LogChangeListener;
 import log.LogEntry;
 import log.LogWindowSource;
 
-import java.io.File;
 
-public class LogWindow extends JInternalFrame implements LogChangeListener, Savable {
+public class LogWindow extends SavableJInternalFrame implements LogChangeListener {
     private LogWindowSource m_logSource;
     private TextArea m_logContent;
 
@@ -47,18 +42,6 @@ public class LogWindow extends JInternalFrame implements LogChangeListener, Sava
     @Override
     public void onLogChanged() {
         EventQueue.invokeLater(this::updateLogContent);
-    }
-
-    @Override
-    public void saveWindowSettings(File file) {
-        SavableWindowSettings.writeWindowSettingsInFile(file, new SavableWindowSettings(getTitle(), getLocation(), getSize(), isIcon(), isMaximum()));
-    }
-
-    @Override
-    public void loadWindowSettings(File file) {
-        SavableWindowSettings ws = SavableWindowSettings.readWindowSettingsFromFile(file, getTitle());
-        if (ws == null) setDefaultSettings();
-        else JInternalFrameLoader.load(this,ws);
     }
 
     @Override
